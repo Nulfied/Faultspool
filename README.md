@@ -32,6 +32,91 @@ The demo runs a small refund-desk agent (`examples/toy_agent.py`) that has three
 Faultspool captures them, turns them into 3 tests, confirms that v1 fails all 3 and v2 passes
 all 3, and writes a dashboard to `examples/.demo/report/index.html`.
 
+## MCP
+
+Faultspool plugs into MCP from both ends: it **is** an MCP server you can triage failures
+through, and it **records** the MCP calls your own agent makes.
+
+### As an MCP server
+
+```bash
+pip install "faultspool[mcp]"
+```
+
+```bash
+claude mcp add faultspool -- python -m faultspool.mcp_server
+```
+
+For Claude Desktop, in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "faultspool": {
+      "command": "python",
+      "args": ["-m", "faultspool.mcp_server"],
+      "env": { "FAULTSPOOL_DB": "/path/to/project/.faultspool/faultspool.db" }
+    }
+  }
+}
+```
+
+Nine tools, enough to run the whole loop from a conversation:
+
+| tool | does |
+|---|---|
+| `spool_stats` | traces captured, how many failed, tests, latest run |
+| `list_clusters` | failure clusters biggest first (size = priority) |
+| `list_tests` / `show_test` | browse tests; see the recorded mocks and assertions |
+| `show_trace` | one run step by step, with the failures found in it |
+| `ingest_traces` | ingest a file or directory, then detect + convert + cluster |
+| `annotate_test` | confirm, reject, or correct the expected output |
+| `run_regression` | replay the suite against the current agent |
+| `export_tests` | write the suite to JSONL for CI |
+
+`run_regression` imports and runs the agent you name (`module:function`), exactly as
+`faultspool run` does. Tool calls are served from the recording, so no live API is touched,
+but the agent's own code does execute. Set `FAULTSPOOL_MCP_AGENTS` to a comma-separated
+allowlist to restrict which specs it may import.
+
+The protocol wiring lives in [`faultspool/mcp_server.py`](faultspool/mcp_server.py); the logic
+behind it is plain functions in [`faultspool/mcp_tools.py`](faultspool/mcp_tools.py) with no
+dependency on the `mcp` package, so it is testable without it.
+
+### Capturing an agent that uses MCP
+
+A failed MCP `tools/call` comes back as a normal result with `isError` set, not as an
+exception, so an agent that ignores the flag turns a failure into a confident wrong answer.
+`RecordingSession` wraps a `ClientSession` and records each call, `isError` included:
+
+```python
+from faultspool import Recorder
+from faultspool.integrations.mcp import RecordingSession
+
+with Recorder(task, agent="researcher", sink=store) as rec:
+    async with ClientSession(read, write) as raw:
+        await raw.initialize()
+        session = RecordingSession(rec, raw, server="github")
+        await session.list_tools()
+        await session.call_tool("create_issue", {...})   # recorded
+        rec.output(answer)
+```
+
+`ReplaySession` serves those recordings back, so the captured run replays in CI with no
+server running and no network:
+
+```python
+from faultspool.integrations.mcp import ReplaySession
+
+def my_agent(task, tools):                      # what faultspool run calls
+    session = ReplaySession.from_tools(tools, server="github")
+    return asyncio.run(my_agent_logic(session, task))
+```
+
+Neither class imports `mcp` — results are read by duck typing, so they work against a real
+`ClientSession`, a fake, or a dict off the wire. A full capture → convert → replay example is
+in [`examples/mcp_agent.py`](examples/mcp_agent.py).
+
 ## 1. Capture traces
 
 The agent contract is plain Python: `agent(task, tools) -> output`, where `tools` is a dict of
@@ -74,7 +159,7 @@ with Recorder(task, agent="bot", sink="traces.jsonl") as rec:
 
 | detector | finds |
 |---|---|
-| **rule** | `exception`, `tool_error` (low severity if the agent recovered), `timeout`, `malformed_output` (empty output, broken JSON, or `meta.output_schema` violations), `wrong_answer` (benchmark ground truth) |
+| **rule** | `exception`, `tool_error`, `timeout`, `malformed_output` (empty output, broken JSON, or `meta.output_schema` violations), `wrong_answer` (benchmark ground truth) |
 | **heuristic** | `loop` (the same call 3+ times, or A→B→A→B cycles), `self_contradiction` (create→delete, book→cancel on the same args), `unsupported_claim` (claims success after the last call failed), `abandoned` (no output, gave up, or stopped right after an error) |
 | **judge** (opt-in) | `off_track`: a local Ollama model reads a compact version of the trace and decides whether the agent went off track |
 
@@ -82,6 +167,11 @@ with Recorder(task, agent="bot", sink="traces.jsonl") as rec:
 faultspool detect                 # rules + heuristics
 faultspool detect --judge --model llama3.1   # plus the local LLM judge (ollama serve)
 ```
+
+A tool error the agent **recovered** from — by retrying the tool, or by falling back to a
+different one and still finishing cleanly — is recorded at low severity and does not fail a
+run. Handling errors is correct behaviour, and flagging it would bury the runs that actually
+went wrong. A fallback that produced a bad answer is still caught by `unsupported_claim`.
 
 ## 3. Trace → test case
 
@@ -184,18 +274,21 @@ faultspool [--db PATH] {init,ingest,detect,convert,cluster,process,annotate,expo
 ```
 
 Environment variables: `FAULTSPOOL_DB`, `FAULTSPOOL_AGENT`, `FAULTSPOOL_AGENT_VERSION`,
-`OLLAMA_HOST`, `FAULTSPOOL_JUDGE_MODEL` (default `llama3.1`), `FAULTSPOOL_EMBED_MODEL`
-(default `nomic-embed-text`).
+`FAULTSPOOL_MCP_AGENTS`, `OLLAMA_HOST`, `FAULTSPOOL_JUDGE_MODEL` (default `llama3.1`),
+`FAULTSPOOL_EMBED_MODEL` (default `nomic-embed-text`).
 
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,mcp]"
 ```
 
 ```bash
 pytest -q
 ```
+
+The MCP **server** tests skip themselves if the `mcp` extra is not installed; everything else,
+including the MCP client capture and replay, runs with no dependencies at all.
 
 ## License
 

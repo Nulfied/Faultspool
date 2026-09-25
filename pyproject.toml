@@ -1,31 +1,38 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "faultspool"
-version = "0.1.0"
+version = "0.2.0"
 description = "Auto-generate regression tests from AI agent traces: capture, detect failures, replay deterministically, cluster, and gate CI."
 readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Nulfied" }]
-keywords = ["agents", "llm", "testing", "regression", "evals", "traces", "ollama"]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
-  "Topic :: Software Development :: Testing",
-]
+requires-python = ">=3.10"
 dependencies = []
+keywords = ["ai-agents", "llm", "testing", "regression-testing", "evals", "traces", "mcp", "ollama", "ci"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Software Development :: Quality Assurance",
+]
 
 [project.optional-dependencies]
+mcp = ["mcp>=2"]
 dev = ["pytest>=7"]
 
 [project.scripts]
 faultspool = "faultspool.cli:main"
+faultspool-mcp = "faultspool.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/Nulfied/Faultspool"
+Issues = "https://github.com/Nulfied/Faultspool/issues"
 
 [tool.setuptools.packages.find]
 include = ["faultspool*"]

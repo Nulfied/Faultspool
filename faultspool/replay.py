@@ -64,7 +64,16 @@ class MockTools:
         raise ReplayMiss(f"no recorded response for {name}({args})")
 
     def call(self, name: str, *args, **kwargs):
-        m = self._take(name, canonical_args(self._params.get(name), args, kwargs))
+        return self.call_with(name, canonical_args(self._params.get(name), args, kwargs))
+
+    def call_with(self, name: str, args: dict):
+        """Look a call up by an explicit argument dict.
+
+        Callers that already have the arguments as a mapping (an MCP
+        ``tools/call``, say) use this instead of ``call``, where an argument
+        named ``name`` would collide with the positional parameter.
+        """
+        m = self._take(name, dict(args or {}))
         if m.get("error"):
             raise RecordedToolError(m["error"])
         return m.get("result")

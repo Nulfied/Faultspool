@@ -20,15 +20,25 @@ def detect_exceptions(trace: Trace) -> list:
 
 
 def detect_tool_errors(trace: Trace) -> list:
-    """Every tool error; ones the agent later recovered from are marked low severity."""
+    """Every tool error; ones the agent recovered from are marked low severity.
+
+    Recovered means either a later successful call of the same tool (a retry) or
+    a run that still finished cleanly after some later tool call succeeded (a
+    fallback to a different tool). Handling an error is the correct behaviour,
+    so flagging it would bury the runs that actually went wrong; a fallback that
+    produced a bad answer is still caught by `unsupported_claim` and the judge.
+    """
     tools = trace.tool_steps()
+    finished = trace.status == "ok" and any(s.kind == "output" for s in trace.steps)
     out = []
     for i, s in enumerate(tools):
         if not s.error:
             continue
-        recovered = any(t.name == s.name and not t.error for t in tools[i + 1:])
+        later = tools[i + 1:]
+        retried = any(t.name == s.name and not t.error for t in later)
+        fell_back = finished and any(not t.error for t in later)
         out.append(Failure("tool_error", "rule", s.error, s.idx, tool=s.name,
-                           severity="low" if recovered else "medium"))
+                           severity="low" if (retried or fell_back) else "medium"))
     return out
 
 
