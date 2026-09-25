@@ -3,15 +3,21 @@ MCPServer.call_tool()/.list_tools() rather than the do_* functions in
 mcp_tools.py (those have their own coverage in test_mcp_tools.py).
 
 Skips itself entirely if `mcp` isn't installed (`pip install "faultspool[mcp]"`),
-so the base suite still runs without the optional extra.
+so the base suite still runs without the optional extra -- except when
+FAULTSPOOL_REQUIRE_MCP is set, which CI does: there the extra is installed on
+purpose, so a skip would quietly stop testing the protocol wiring at all.
 """
 import asyncio
+import os
 
 import pytest
 
 from faultspool import Store, record
 
-mcp = pytest.importorskip("mcp", reason='needs: pip install "faultspool[mcp]"')
+if os.environ.get("FAULTSPOOL_REQUIRE_MCP"):
+    import mcp  # noqa: F401
+else:
+    mcp = pytest.importorskip("mcp", reason='needs: pip install "faultspool[mcp]"')
 import faultspool.mcp_server as srv  # noqa: E402
 
 TOOL_NAMES = {"spool_stats", "list_clusters", "list_tests", "show_test", "show_trace",

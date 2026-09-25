@@ -18,4 +18,6 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -e ".[dev,mcp]"   # mcp extra so the MCP server tests really run
       - run: pytest -q
+        env:
+          FAULTSPOOL_REQUIRE_MCP: "1"      # fail, don't skip, if that extra ever goes missing
       - run: python examples/demo.py
