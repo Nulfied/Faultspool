@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faultspool"
+version = "0.1.0"
+description = "Auto-generate regression tests from AI agent traces: capture, detect failures, replay deterministically, cluster, and gate CI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Nulfied" }]
+keywords = ["agents", "llm", "testing", "regression", "evals", "traces", "ollama"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+faultspool = "faultspool.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Nulfied/Faultspool"
+
+[tool.setuptools.packages.find]
+include = ["faultspool*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

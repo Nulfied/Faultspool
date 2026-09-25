@@ -1,0 +1,13 @@
+[
+  {"task_id": 44, "intent": "What is the price of the cheapest blue kettle?", "success": false,
+   "actions": [
+     {"action": "type [12] [blue kettle] [1]", "observation": "search results page"},
+     {"action": "click [301]", "observation": "product page: Kettle, $39.99"},
+     {"action": "stop [$39.99]"}
+   ]},
+  {"task_id": 45, "intent": "How many orders did I place in 2022?", "score": 1.0,
+   "actions": [
+     {"action": "click [55]", "observation": "My orders"},
+     {"action": "stop [12]"}
+   ]}
+]

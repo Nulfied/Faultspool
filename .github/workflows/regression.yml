@@ -1,0 +1,39 @@
+# Template: gate an agent on its captured failures.
+# Copy into your agent's repo, point FAULTSPOOL_AGENT at your agent callable and
+# commit your exported tests + baseline (faultspool export / run --update-baseline).
+name: agent-regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    env:
+      FAULTSPOOL_AGENT: examples.toy_agent:run_v2
+      FAULTSPOOL_AGENT_VERSION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Replay captured failures against this commit
+        run: |
+          faultspool run \
+            --tests examples/spool/tests.jsonl \
+            --baseline examples/spool/baseline.json \
+            --fail-on regression \
+            --json faultspool-results.json
+      - name: Build dashboard
+        if: always()
+        run: faultspool dashboard -o faultspool-report/index.html --title "Faultspool · ${{ github.ref_name }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: faultspool-report
+          path: |
+            faultspool-report/
+            faultspool-results.json
