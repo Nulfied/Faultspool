@@ -1,11 +1,28 @@
 # Faultspool
 
+[![tests](https://github.com/Nulfied/Faultspool/actions/workflows/ci.yml/badge.svg)](https://github.com/Nulfied/Faultspool/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-server%20%2B%20client-8A2BE2)](#mcp)
+
 **Turn your agent's failures into regression tests, automatically.**
 
 Faultspool records what your AI agent does, finds the runs that went wrong, and turns each
 one into a small deterministic test that replays the recorded tool responses. Run the tests
 on every commit to see which past failures are fixed, which still fail, and which fail in a
 new way.
+
+**Set it up as an MCP server** and triage those failures straight from Claude Code or Claude
+Desktop:
+
+```bash
+pip install "faultspool[mcp]"
+claude mcp add faultspool -- python -m faultspool.mcp_server
+```
+
+That hands the model nine tools — browse failure clusters, read a captured run step by step,
+confirm or correct a test, replay the suite against your current agent. Claude Desktop config
+and the client-side capture adapter are in [MCP](#mcp) below.
 
 Everything runs on your own machine and free CI. It has no runtime dependencies (stdlib only),
 uses SQLite for storage, and uses a local Ollama model when you want an LLM judge or
@@ -41,9 +58,6 @@ through, and it **records** the MCP calls your own agent makes.
 
 ```bash
 pip install "faultspool[mcp]"
-```
-
-```bash
 claude mcp add faultspool -- python -m faultspool.mcp_server
 ```
 
